@@ -1,0 +1,188 @@
+import pygame
+import sys
+import math
+
+pygame.init()
+
+RONG, CAO = 600, 700
+DO_DAY_DUONG = 15
+O_CARO = RONG // 3
+BAN_KINH_TRON = O_CARO // 3
+DO_DAY_TRON = 15
+DO_DAY_CHEO = 25
+KHOANG_CACH = O_CARO // 4
+
+MAU_NEN = (28, 170, 156)
+MAU_DUONG = (23, 145, 135)
+MAU_TRON = (239, 231, 200)
+MAU_CHEO = (66, 66, 66)
+MAU_CHU = (255, 0, 0)
+MAU_NUT = (200, 200, 200)
+MAU_NUT_HOVER = (170, 170, 170)
+
+man_hinh = pygame.display.set_mode((RONG, CAO))
+pygame.display.set_caption('Caro AI')
+man_hinh.fill(MAU_NEN)
+
+ban_co = [[' ' for _ in range(3)] for _ in range(3)]
+
+def ve_duong_luoi():
+    pygame.draw.line(man_hinh, MAU_DUONG, (0, O_CARO), (RONG, O_CARO), DO_DAY_DUONG)
+    pygame.draw.line(man_hinh, MAU_DUONG, (0, O_CARO * 2), (RONG, O_CARO * 2), DO_DAY_DUONG)
+    pygame.draw.line(man_hinh, MAU_DUONG, (O_CARO, 0), (O_CARO, CAO - 100), DO_DAY_DUONG)
+    pygame.draw.line(man_hinh, MAU_DUONG, (O_CARO * 2, 0), (O_CARO * 2, CAO - 100), DO_DAY_DUONG)
+
+def ve_nuoc_co():
+    for hang in range(3):
+        for cot in range(3):
+            if ban_co[hang][cot] == 'O':
+                pygame.draw.circle(man_hinh, MAU_TRON, 
+                                   (cot * O_CARO + O_CARO // 2, hang * O_CARO + O_CARO // 2), 
+                                   BAN_KINH_TRON, DO_DAY_TRON)
+            elif ban_co[hang][cot] == 'X':
+                pygame.draw.line(man_hinh, MAU_CHEO, 
+                                 (cot * O_CARO + KHOANG_CACH, hang * O_CARO + KHOANG_CACH), 
+                                 (cot * O_CARO + O_CARO - KHOANG_CACH, hang * O_CARO + O_CARO - KHOANG_CACH), DO_DAY_CHEO)
+                pygame.draw.line(man_hinh, MAU_CHEO, 
+                                 (cot * O_CARO + KHOANG_CACH, hang * O_CARO + O_CARO - KHOANG_CACH), 
+                                 (cot * O_CARO + O_CARO - KHOANG_CACH, hang * O_CARO + KHOANG_CACH), DO_DAY_CHEO)
+
+def kiem_tra_thang(nguoi_choi):
+    for hang in ban_co:
+        if hang.count(nguoi_choi) == 3:
+            return True
+    for cot in range(3):
+        if ban_co[0][cot] == ban_co[1][cot] == ban_co[2][cot] == nguoi_choi:
+            return True
+    if ban_co[0][0] == ban_co[1][1] == ban_co[2][2] == nguoi_choi or ban_co[0][2] == ban_co[1][1] == ban_co[2][0] == nguoi_choi:
+        return True
+    return False
+
+def kiem_tra_hoa():
+    for hang in ban_co:
+        if ' ' in hang:
+            return False
+    return True
+
+def danh_dau(hang, cot, nguoi_choi):
+    ban_co[hang][cot] = nguoi_choi
+
+def o_trong(hang, cot):
+    return ban_co[hang][cot] == ' '
+
+def minimax(ban_co, do_sau, toi_da, alpha, beta):
+    if kiem_tra_thang('X'):
+        return 1
+    if kiem_tra_thang('O'):
+        return -1
+    if kiem_tra_hoa():
+        return 0
+
+    if toi_da:
+        diem_toi_da = -math.inf
+        for hang in range(3):
+            for cot in range(3):
+                if o_trong(hang, cot):
+                    ban_co[hang][cot] = 'X'
+                    diem = minimax(ban_co, do_sau + 1, False, alpha, beta)
+                    ban_co[hang][cot] = ' '
+                    diem_toi_da = max(diem_toi_da, diem)
+                    alpha = max(alpha, diem)
+                    if beta <= alpha:
+                        break
+        return diem_toi_da
+    else:
+        diem_toi_thieu = math.inf
+        for hang in range(3):
+            for cot in range(3):
+                if o_trong(hang, cot):
+                    ban_co[hang][cot] = 'O'
+                    diem = minimax(ban_co, do_sau + 1, True, alpha, beta)
+                    ban_co[hang][cot] = ' '
+                    diem_toi_thieu = min(diem_toi_thieu, diem)
+                    beta = min(beta, diem)
+                    if beta <= alpha:
+                        break
+        return diem_toi_thieu
+
+def nuoc_di_tot_nhat():
+    diem_tot_nhat = -math.inf
+    nuoc_di = None
+    for hang in range(3):
+        for cot in range(3):
+            if o_trong(hang, cot):
+                ban_co[hang][cot] = 'X'
+                diem = minimax(ban_co, 0, False, -math.inf, math.inf)
+                ban_co[hang][cot] = ' '
+                if diem > diem_tot_nhat:
+                    diem_tot_nhat = diem
+                    nuoc_di = (hang, cot)
+    return nuoc_di
+
+def hien_thong_bao(thong_bao):
+    font = pygame.font.Font(None, 50)
+    text = font.render(thong_bao, True, MAU_CHU)
+    text_rect = text.get_rect(center=(RONG // 2, CAO - 100))
+    man_hinh.blit(text, text_rect)
+
+def nut_choi_lai():
+    nut_rect = pygame.Rect(RONG // 2 - 60, CAO - 50, 120, 40)
+    pygame.draw.rect(man_hinh, MAU_NUT, nut_rect)
+    font = pygame.font.Font(None, 30)
+    text = font.render("Choi lai", True, (0, 0, 0))
+    text_rect = text.get_rect(center=nut_rect.center)
+    man_hinh.blit(text, text_rect)
+    return nut_rect
+
+ve_duong_luoi()
+nguoi_choi = 'O'
+ket_thuc = False
+
+while True:
+    for su_kien in pygame.event.get():
+        if su_kien.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+        if su_kien.type == pygame.MOUSEBUTTONDOWN:
+            chuot_x, chuot_y = su_kien.pos
+
+            if ket_thuc:
+                nut = nut_choi_lai()
+                if nut.collidepoint(chuot_x, chuot_y):
+                    ban_co = [[' ' for _ in range(3)] for _ in range(3)]
+                    man_hinh.fill(MAU_NEN)
+                    ve_duong_luoi()
+                    nguoi_choi = 'O'
+                    ket_thuc = False
+            elif not ket_thuc and nguoi_choi == 'O':
+                hang_chon = chuot_y // O_CARO
+                cot_chon = chuot_x // O_CARO
+
+                if hang_chon < 3 and cot_chon < 3 and o_trong(hang_chon, cot_chon):
+                    danh_dau(hang_chon, cot_chon, 'O')
+                    if kiem_tra_thang('O'):
+                        ket_thuc = True
+                    elif kiem_tra_hoa():
+                        ket_thuc = True
+                    nguoi_choi = 'X'
+
+        if nguoi_choi == 'X' and not ket_thuc:
+            nuoc_di = nuoc_di_tot_nhat()
+            danh_dau(nuoc_di[0], nuoc_di[1], 'X')
+            if kiem_tra_thang('X'):
+                ket_thuc = True
+            elif kiem_tra_hoa():
+                ket_thuc = True
+            nguoi_choi = 'O'
+
+    ve_nuoc_co()
+    if ket_thuc:
+        if kiem_tra_thang('O'):
+            hien_thong_bao("Nguoi choi O thang!")
+        elif kiem_tra_thang('X'):
+            hien_thong_bao("AI X thang!")
+        else:
+            hien_thong_bao("Hoa!")
+        nut_choi_lai()
+    pygame.display.update()
